@@ -1,4 +1,5 @@
 import math
+from collections import defaultdict
 
 
 class Metric(object):
@@ -46,10 +47,20 @@ class Metric(object):
         prec = sum([hits[user] for user in hits])
         return prec / (len(hits) * N)
 
+    # @staticmethod
+    # def recall(hits, origin):
+    #     recall_list = [hits[user]/len(origin[user]) for user in hits]
+    #     recall = sum(recall_list) / len(recall_list)
+    #     return recall
+
     @staticmethod
     def recall(hits, origin):
-        recall_list = [hits[user]/len(origin[user]) for user in hits]
-        recall = sum(recall_list) / len(recall_list)
+        total_num = 0
+        for user in origin:
+            items = list(origin[user].keys())
+            total_num += len(items)
+        recall_list = [hits[user] for user in hits]
+        recall = sum(recall_list) / total_num
         return recall
 
     @staticmethod
@@ -83,6 +94,10 @@ class Metric(object):
 
     @staticmethod
     def NDCG(origin,res,N):
+        total_num = 0
+        for user in origin:
+            items = list(origin[user].keys())
+            total_num += len(items)
         sum_NDCG = 0
         for user in res:
             DCG = 0
@@ -94,7 +109,7 @@ class Metric(object):
             for n, item in enumerate(list(origin[user].keys())[:N]):
                 IDCG+=1.0/math.log(n+2)
             sum_NDCG += DCG / IDCG
-        return sum_NDCG / len(res)
+        return sum_NDCG / len(res) # total_num # 
 
     # @staticmethod
     # def MAP(origin, res, N):
@@ -134,6 +149,7 @@ class Metric(object):
 
 def ranking_evaluation(origin, res, N):
     measure = []
+    ans = defaultdict(list)
     for n in N:
         predicted = {}
         for user in res:
@@ -159,7 +175,12 @@ def ranking_evaluation(origin, res, N):
         # measure.append('AUC:' + str(AUC) + '\n')
         measure.append('Top ' + str(n) + '\n')
         measure += indicators
-    return measure
+
+        ans['hit'].append(hr)
+        ans['precision'].append(prec)
+        ans['recall'].append(recall)
+        ans['ndcg'].append(NDCG)
+    return measure, ans
 
 def rating_evaluation(res):
     measure = []

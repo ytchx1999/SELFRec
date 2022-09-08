@@ -26,8 +26,8 @@ class FileIO(object):
             with open(file) as f:
                 for line in f:
                     items = split(' ', line.strip())
-                    user_id = items[0]
-                    item_id = items[1]
+                    user_id = int(items[0])
+                    item_id = int(items[1])
                     weight = items[2]
                     data.append([user_id, item_id, float(weight)])
 

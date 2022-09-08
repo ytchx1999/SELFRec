@@ -21,7 +21,7 @@ class NCL(GraphRecommender):
         self.alpha = float(args['-alpha'])
         self.proto_reg = float(args['-proto_reg'])
         self.k = int(args['-num_clusters'])
-        self.model = LGCN_Encoder(self.data, self.emb_size, self.n_layers)
+        self.model = LGCN_Encoder(self.data, self.emb_size, self.n_layers, self.device)
         self.user_centroids = None
         self.user_2cluster = None
         self.item_centroids = None
@@ -40,8 +40,8 @@ class NCL(GraphRecommender):
         cluster_cents = kmeans.centroids
         _, I = kmeans.index.search(x, 1)
         # convert to cuda Tensors for broadcast
-        centroids = torch.Tensor(cluster_cents).cuda()
-        node2cluster = torch.LongTensor(I).squeeze().cuda()
+        centroids = torch.Tensor(cluster_cents).to(self.device)
+        node2cluster = torch.LongTensor(I).squeeze().to(self.device)
         return centroids, node2cluster
 
     def ProtoNCE_loss(self, initial_emb, user_idx, item_idx):
@@ -84,7 +84,7 @@ class NCL(GraphRecommender):
         return ssl_loss
 
     def train(self):
-        model = self.model.cuda()
+        model = self.model.to(self.device)
         optimizer = torch.optim.Adam(model.parameters(), lr=self.lRate)
         for epoch in range(self.maxEpoch):
             if epoch >= 20:
@@ -132,14 +132,15 @@ class NCL(GraphRecommender):
 
 
 class LGCN_Encoder(nn.Module):
-    def __init__(self, data, emb_size, n_layers):
+    def __init__(self, data, emb_size, n_layers, device='cpu'):
         super(LGCN_Encoder, self).__init__()
         self.data = data
         self.latent_size = emb_size
         self.layers = n_layers
         self.norm_adj = data.norm_adj
         self.embedding_dict = self._init_model()
-        self.sparse_norm_adj = TorchGraphInterface.convert_sparse_mat_to_tensor(self.norm_adj).cuda()
+        self.device = device
+        self.sparse_norm_adj = TorchGraphInterface.convert_sparse_mat_to_tensor(self.norm_adj).to(self.device)
 
     def _init_model(self):
         initializer = nn.init.xavier_uniform_

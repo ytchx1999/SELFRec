@@ -25,4 +25,5 @@ class SELFRec(object):
         import_str = 'from model.'+ self.config['model.type'] +'.' + self.config['model.name'] + ' import ' + self.config['model.name']
         exec(import_str)
         recommender = self.config['model.name'] + '(self.config,self.training_data,self.test_data,**self.kwargs)'
-        eval(recommender).execute()
+        ans = eval(recommender).execute()
+        return ans

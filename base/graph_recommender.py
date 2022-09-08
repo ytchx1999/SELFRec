@@ -62,9 +62,9 @@ class GraphRecommender(Recommender):
     def evaluate(self, rec_list):
         self.recOutput.append('userId: recommendations in (itemId, ranking score) pairs, * means the item is hit.\n')
         for user in self.data.test_set:
-            line = user + ':'
+            line = str(user) + ':'
             for item in rec_list[user]:
-                line += ' (' + item[0] + ',' + str(item[1]) + ')'
+                line += ' (' + str(item[0]) + ',' + str(item[1]) + ')'
                 if item[0] in self.data.test_set[user]:
                     line += '*'
             line += '\n'
@@ -75,17 +75,18 @@ class GraphRecommender(Recommender):
         file_name = self.config['model.name'] + '@' + current_time + '-top-' + str(self.max_N) + 'items' + '.txt'
         FileIO.write_file(out_dir, file_name, self.recOutput)
         print('The result has been output to ', abspath(out_dir), '.')
-        file_name = self.config['model.name'] + '@' + current_time + '-performance' + '.txt'
-        self.result = ranking_evaluation(self.data.test_set, rec_list, self.topN)
+        file_name = self.config['model.name'] + '@' + self.dataset_name + '-performance' + '.txt'
+        self.result, ans = ranking_evaluation(self.data.test_set, rec_list, self.topN)
         self.model_log.add('###Evaluation Results###')
         self.model_log.add(self.result)
         FileIO.write_file(out_dir, file_name, self.result)
         print('The result of %s:\n%s' % (self.model_name, ''.join(self.result)))
+        return ans
 
     def fast_evaluation(self, epoch):
         print('evaluating the model...')
         rec_list = self.test()
-        measure = ranking_evaluation(self.data.test_set, rec_list, [self.max_N])
+        measure, ans = ranking_evaluation(self.data.test_set, rec_list, [self.max_N])
         if len(self.bestPerformance) > 0:
             count = 0
             performance = {}

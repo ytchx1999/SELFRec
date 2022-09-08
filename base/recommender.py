@@ -3,6 +3,7 @@ from util.conf import OptionConf
 from util.logger import Log
 from os.path import abspath
 from time import strftime, localtime, time
+import torch
 
 
 class Recommender(object):
@@ -10,6 +11,8 @@ class Recommender(object):
         self.config = conf
         self.data = Data(self.config, training_set, test_set)
         self.model_name = self.config['model.name']
+        self.dataset_name = self.config['dataset']
+        self.device = torch.device('cuda:{}'.format(self.config['gpu']) if torch.cuda.is_available() else 'cpu')
         self.ranking = OptionConf(self.config['item.ranking'])
         self.emb_size = int(self.config['embbedding.size'])
         self.maxEpoch = int(self.config['num.max.epoch'])
@@ -74,4 +77,5 @@ class Recommender(object):
         print('Testing...')
         rec_list = self.test()
         print('Evaluating...')
-        self.evaluate(rec_list)
+        ans = self.evaluate(rec_list)
+        return ans
