@@ -18,9 +18,9 @@ def set_seed(seed=0):
 if __name__ == '__main__':
     # Register your model here
     parser = argparse.ArgumentParser('SELFRec')
-    parser.add_argument('--n_runs', type=int, default=5, help='Number of runs')
+    parser.add_argument('--n_runs', type=int, default=3, help='Number of runs')
     parser.add_argument('--seed', type=int, default=0, help='Seed for all')
-    parser.add_argument('--model', type=str, default="NCL", choices=['SGL', 'SimGCL', 'SEPT', 'MHCN', 'BUIR', 'SelfCF', 'SSL4Rec', 'XSimGCL', 'NCL'], help='Type of module')
+    parser.add_argument('--model', type=str, default="SGL", choices=['SGL', 'SimGCL', 'SEPT', 'MHCN', 'BUIR', 'SelfCF', 'SSL4Rec', 'XSimGCL', 'NCL'], help='Type of module')
 
     args = parser.parse_args()
     set_seed(args.seed)

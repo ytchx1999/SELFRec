@@ -17,6 +17,8 @@ python3 util/preprocess_amazon_2018.py --data pantry  --path_name Prime_Pantry
 python3 util/preprocess_amazon_2018.py --data scientific  --path_name Industrial_and_Scientific
 # beauty
 python3 util/preprocess_amazon_2018.py --data beauty  --path_name Luxury_Beauty
+# office
+python3 util/preprocess_amazon.py --data office --path_name Office_Products
 
 
 # ml100k

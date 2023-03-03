@@ -109,7 +109,7 @@ class Metric(object):
             for n, item in enumerate(list(origin[user].keys())[:N]):
                 IDCG+=1.0/math.log(n+2)
             sum_NDCG += DCG / IDCG
-        return sum_NDCG / len(res) # total_num # 
+        return sum_NDCG / total_num  # total_num # len(res)    
 
     # @staticmethod
     # def MAP(origin, res, N):

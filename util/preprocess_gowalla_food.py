@@ -3,78 +3,32 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 import argparse
-import gzip
+import time
 from collections import defaultdict
-import pickle
 
 
-def parse(path):
-  g = gzip.open(path, 'rb')
-  for l in g:
-    yield json.loads(l)
-
-
-def getDF(path):
-  i = 0
-  df = {}
-  for d in parse(path):
-    df[i] = d
-    i += 1
-  return pd.DataFrame.from_dict(df, orient='index')
-
-def get_data(path_name, data_name):
-    df = getDF(f'./dataset/{data_name}/reviews_{path_name}_5.json.gz')
-    data = df[['reviewerID', 'asin', 'unixReviewTime']]
-    data.columns = ['user_id','item_id', "timestamp"]
-    u_map = {}
-    i_map = {}
-
-    u_id = 0
-    i_id = 0
-
-    u_list = []
-    i_list = []
-    ts_list = []
-    label_list = []
-
-    user_count = defaultdict(int)
-    item_count = defaultdict(int)
-    for idx, row in data.iterrows():
-        u, i, ts = row['user_id'], row['item_id'], row['timestamp']
-        user_count[u] += 1
-        item_count[i] += 1
-
-    for idx, row in data.iterrows():
-        u, i, ts = row['user_id'], row['item_id'], row['timestamp']
-        # if user_count[u] < 20 or item_count[i] < 20:
-        #     continue
-        if u not in u_map:
-            u_map[u] = u_id
-            u_id += 1
-        if i not in i_map:
-            i_map[i] = i_id
-            i_id += 1
-        u_list.append(u_map[u])
-        i_list.append(i_map[i])
-        ts_list.append(float(ts))
-        label_list.append(1)
-
-    csv_data = pd.DataFrame({'user_id': u_list, 'item_id': i_list, 'timestamp': ts_list, 'label': label_list})
-    csv_data.to_csv(f'./dataset/{data_name}/{data_name}.csv', index=0)
-    # pickle.dump(i_map, open(f'./data/{data_name}/{data_name}_i_map.pkl', "wb"))
-    return i_map
+def time2stamp(dt):
+    timeArray = time.strptime(dt, "%Y-%m-%dT%H:%M:%SZ")
+    timestamp = time.mktime(timeArray)
+    return timestamp
 
 
 def preprocess(data_name):
-    u_list, i_list, ts_list, label_list = [], [], [], []
+    u_list, i_list, ts_list, lat_list, lon_list, label_list = [], [], [], [], [], []
     # feat_l = []
     idx_list = []
 
-    u2i_map_list = defaultdict(list)
-    i2u_map_list = defaultdict(list)
+    u_map = {}
+    i_map = {}
+    u_ind = 0
+    i_ind = 0
+    u_count = defaultdict(int)
+    i_count = defaultdict(int)
 
     u_index_list = []
     i_index_list = []
+    u2i_map_list = defaultdict(list)
+    i2u_map_list = defaultdict(list)
 
     with open(data_name) as f:
         s = next(f)
@@ -82,9 +36,32 @@ def preprocess(data_name):
             e = line.strip().split(',')
             u = int(e[0])
             i = int(e[1])
+            u_count[u] += 1
+            i_count[i] += 1
 
-            ts = float(e[2])
-            label = float(e[3])  # int(e[3])
+    with open(data_name) as f:
+        s = next(f)
+        for idx, line in enumerate(f):
+            e = line.strip().split(',')
+            u = int(e[0])
+            i = int(e[1])
+            lat = float(e[5])
+            lon = float(e[6])
+            if u_count[u] < 10 or i_count[i] < 10:
+                continue
+
+            if u not in u_map:
+                u_map[u] = u_ind               
+                u_ind += 1
+            if i not in i_map:
+                i_map[i] = i_ind
+                i_ind += 1
+            
+            u = u_map[u]
+            i = i_map[i]
+
+            ts = float(e[3])
+            label = float(1)  # int(e[3])
 
             # feat = np.array([float(x) for x in e[4:]])
 
@@ -93,9 +70,11 @@ def preprocess(data_name):
             ts_list.append(ts)
             label_list.append(label)
             idx_list.append(idx)
+            lat_list.append(lat)
+            lon_list.append(lon)
 
             # feat_l.append(feat)
-
+    
     df = pd.DataFrame({'u': u_list, 
                         'i':i_list, 
                         'ts':ts_list, 
@@ -104,37 +83,33 @@ def preprocess(data_name):
     
     df.sort_values("ts", inplace=True)
 
-    # users = df.u.values
-    # items = df.i.values
+    users = df.u.values
+    items = df.i.values
 
-    # for (u, i) in zip(users, items):
-    #     u2i_map_list[u].append(i)
-    #     i2u_map_list[i].append(u)
+    for (u, i) in zip(users, items):
+        u2i_map_list[u].append(i)
+        i2u_map_list[i].append(u)
 
-    #     u_index_list.append(len(u2i_map_list[u]) - 1)
-    #     i_index_list.append(len(i2u_map_list[i]) - 1)
+        u_index_list.append(len(u2i_map_list[u]) - 1)
+        i_index_list.append(len(i2u_map_list[i]) - 1)
     
-    # df['u_idx'] = u_index_list
-    # df['i_idx'] = i_index_list
+    df['u_idx'] = u_index_list
+    df['i_idx'] = i_index_list
 
     return df #, np.array(feat_l)
 
 
-def reindex(df, i_map, data_name, bipartite=False):
+def reindex(df, bipartite=False):
     new_df = df.copy()
+    print(new_df.u.max())
+    print(new_df.i.max())
+    
     if bipartite:
         assert (df.u.max() - df.u.min() + 1 == len(df.u.unique()))
         assert (df.i.max() - df.i.min() + 1 == len(df.i.unique()))
 
         upper_u = df.u.max() + 1
         new_i = df.i + upper_u
-
-        for key, val in i_map.items():
-            i_map[key] += (upper_u + 1)
-        
-        # pickle.dump(i_map, open(f'./data/{data_name}/{data_name}_i_map.pkl', "wb"))
-        print(new_df.u.max())
-        print(new_df.i.max())
 
         new_df.i = new_i
         new_df.u += 1
@@ -143,31 +118,27 @@ def reindex(df, i_map, data_name, bipartite=False):
 
         print(new_df.u.max())
         print(new_df.i.max())
+        print(len(new_df))
     else:
         new_df.u += 1
         new_df.i += 1
         new_df.idx += 1
 
-        print(new_df.u.max())
-        print(new_df.i.max())
-
     return new_df
 
 
-def run(data_name, path_name, bipartite=False):
-    Path(f"dataset/{data_name}").mkdir(parents=True, exist_ok=True)
-    PATH = './dataset/{}/{}.csv'.format(data_name, data_name)
+def run(data_name, bipartite=False):
+    Path(f"./dataset/{data_name}").mkdir(parents=True, exist_ok=True)
+    PATH = './dataset/{}/gowalla-food.csv'.format(data_name, data_name)
     OUT_DF = './dataset/{}/ml_{}.csv'.format(data_name, data_name)
     train_path = './dataset/{}/train.txt'.format(data_name)
     test_path = './dataset/{}/test.txt'.format(data_name)
     # OUT_FEAT = './data/{}/ml_{}.npy'.format(data_name, data_name)
     # OUT_NODE_FEAT = './data/{}/ml_{}_node.npy'.format(data_name, data_name)
 
-    i_map = get_data(path_name, data_name)
-
     df = preprocess(PATH)  # , feat
     # df.sort_values("ts", inplace=True)
-    new_df = reindex(df, i_map, data_name, bipartite)
+    new_df = reindex(df, bipartite)
 
     # empty = np.zeros(feat.shape[1])[np.newaxis, :]
     # feat = np.vstack([empty, feat])
@@ -260,11 +231,9 @@ def run(data_name, path_name, bipartite=False):
 
 parser = argparse.ArgumentParser('Interface for LSTDR data preprocessing')
 parser.add_argument('--data', type=str, help='Dataset name (eg. wikipedia or reddit)',
-                    default='music')
+                    default='gowalla')
 parser.add_argument('--bipartite', action='store_true', help='Whether the graph is bipartite')
-parser.add_argument('--path_name', type=str, help='Path name for amazon dataset',
-                    default='Digital_Music')
 
 args = parser.parse_args()
 
-run(args.data, args.path_name, bipartite=args.bipartite)
+run(args.data, bipartite=args.bipartite)
